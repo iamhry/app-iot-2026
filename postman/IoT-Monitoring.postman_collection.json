@@ -1,0 +1,244 @@
+{
+  "info": {
+    "name": "IoT Monitoring",
+    "description": "Uji REST API monitoring suhu. Isi environment Local: base_url, device_id, dan device_token. Jangan menyimpan token asli di repository. Permintaan yang ditolak tidak menambah pengukuran dan tidak memperbarui last_seen_at.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Token valid dan data valid",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('struktur respons', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.success).to.eql(true);",
+              "  pm.expect(body.data.device_id).to.eql(pm.environment.get('device_id'));",
+              "  pm.expect(body.data.temperature).to.eql(26.5);",
+              "  pm.expect(body.data.humidity).to.eql(65.2);",
+              "  pm.expect(body.data.status).to.be.oneOf(['below_min', 'normal', 'above_max']);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"temperature\": 26.5,\n  \"humidity\": 65.2\n}"
+        },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Tanpa token",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 401', function () { pm.response.to.have.status(401); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"temperature\": 26.5,\n  \"humidity\": 65.2\n}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Token salah",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 401', function () { pm.response.to.have.status(401); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer 0000000000000000000000000000000000000000000000000000000000000000" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"temperature\": 26.5,\n  \"humidity\": 65.2\n}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Device ID perangkat lain",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 403', function () { pm.response.to.have.status(403); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{other_device_id}}\",\n  \"temperature\": 26.5,\n  \"humidity\": 65.2\n}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Perangkat nonaktif",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 403', function () { pm.response.to.have.status(403); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{inactive_device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"temperature\": 26.5,\n  \"humidity\": 65.2\n}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Suhu di luar rentang",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 422', function () { pm.response.to.have.status(422); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"temperature\": 120,\n  \"humidity\": 65.2\n}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Kelembapan 150 persen",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 422', function () { pm.response.to.have.status(422); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"temperature\": 26.5,\n  \"humidity\": 150\n}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Field wajib hilang",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 422', function () { pm.response.to.have.status(422); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{device_id}}\"\n}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "JSON rusak",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 400', function () { pm.response.to.have.status(400); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"device_id\": " },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Content-Type salah",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 415', function () { pm.response.to.have.status(415); });"] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "text/plain" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"device_id\":\"{{device_id}}\",\"temperature\":26.5,\"humidity\":65.2}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "Metode salah",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 405', function () { pm.response.to.have.status(405); });"] } }],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"device_id\":\"{{device_id}}\",\"temperature\":26.5,\"humidity\":65.2}" },
+        "url": "{{base_url}}/api/v1/readings.php"
+      }
+    },
+    {
+      "name": "GET device",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('hanya identitas sendiri', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.data.device_id).to.eql(pm.environment.get('device_id'));",
+              "  pm.expect(body.data).to.not.have.property('token_hash');",
+              "  pm.expect(body.data).to.not.have.property('token');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{device_token}}" }],
+        "url": "{{base_url}}/api/v1/device.php"
+      }
+    },
+    {
+      "name": "GET latest",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 200 atau 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"] } }],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{device_token}}" }],
+        "url": "{{base_url}}/api/v1/latest.php"
+      }
+    },
+    {
+      "name": "Rate limit",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const url = pm.environment.get('base_url') + '/api/v1/readings.php';",
+              "const token = pm.environment.get('device_token');",
+              "const deviceId = pm.environment.get('device_id');",
+              "for (let i = 0; i < 35; i++) {",
+              "  await new Promise((resolve) => {",
+              "    pm.sendRequest({",
+              "      url: url,",
+              "      method: 'POST',",
+              "      header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },",
+              "      body: { mode: 'raw', raw: JSON.stringify({ device_id: deviceId, temperature: 26.5, humidity: 60 }) }",
+              "    }, function () { resolve(); });",
+              "  });",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": { "type": "text/javascript", "exec": ["pm.test('HTTP 429', function () { pm.response.to.have.status(429); });"] }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{device_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"device_id\": \"{{device_id}}\",\n  \"temperature\": 26.5,\n  \"humidity\": 60\n}" },
+        "url": "{{base_url}}/api/v1/readings.php",
+        "description": "Mengirim lebih dari 30 permintaan dalam 60 detik. Butuh Postman yang mendukung await di pre-request script. Jalankan terpisah karena menghabiskan kuota perangkat."
+      }
+    }
+  ]
+}
